@@ -1,0 +1,5 @@
+{
+  "mode": "coding",
+  "prompt": "Write a JavaScript function that reverses a string.",
+  "output": "reverse-string.md"
+}
