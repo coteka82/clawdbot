@@ -5,6 +5,11 @@ const app = express();
 app.use(express.json());
 
 // Health check
+
+app.get("/", (req, res) => {
+  res.send("Clawdbot API is running 🚀");
+});
+
 app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
