@@ -1,48 +1,82 @@
 const express = require("express");
 const cors = require("cors");
-const { upsertLead } = require("./services/sheets.cjs");
+const { google } = require("googleapis");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Health check
+const PORT = process.env.PORT || 3000;
+
+/*
+  IMPORTANT:
+  We parse credentials from environment.
+  We also fix newline formatting for private_key.
+*/
+
+function getGoogleAuth() {
+  if (!process.env.GOOGLE_CREDENTIALS) {
+    throw new Error("GOOGLE_CREDENTIALS not set");
+  }
+
+  const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+
+  // Fix private key formatting (CRITICAL FOR RENDER)
+  if (credentials.private_key) {
+    credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
+  }
+
+  return new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+}
+
+app.post("/lead", async (req, res) => {
+  try {
+    const { name, company, email, message, source } = req.body;
+
+    const auth = getGoogleAuth();
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "Sheet1!A:H",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [
+          [
+            name || "Unknown",
+            company || "",
+            email || "",
+            message || "",
+            new Date().toISOString(),
+            "Pending",
+            "",
+            source || "api"
+          ],
+        ],
+      },
+    });
+
+    res.json({ ok: true, message: "Lead added successfully 🚀" });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      ok: false,
+      error: error.message,
+    });
+  }
+});
 
 app.get("/", (req, res) => {
   res.send("Clawdbot API is running 🚀");
 });
 
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
-});
-
-// Create or update lead
-app.post("/lead", async (req, res) => {
-  try {
-    const { name, company, email, message, source } = req.body || {};
-
-    if (!email) {
-      return res.status(400).json({ error: "email is required" });
-    }
-
-    const result = await upsertLead({
-      name,
-      company,
-      email,
-      message,
-      source: source || "api",
-      status: "Pending",
-    });
-
-    res.json({ ok: true, result });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: String(err?.message || err) });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`API running on http://localhost:${PORT}`);
+  console.log(`API running on port ${PORT}`);
 });
