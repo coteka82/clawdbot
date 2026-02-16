@@ -1,20 +1,16 @@
-const { appendToSheet } = require("./sheets.cjs");
+const { upsertLead } = require("./services/sheets.cjs");
 
 async function run() {
-  const now = new Date().toISOString();
+  const result = await upsertLead({
+    name: "Test User",
+    company: "Test Company",
+    email: "test@example.com",
+    message: "Testing Clawdbot connection",
+    source: "local-test",
+    status: "Pending"
+  });
 
-  await appendToSheet("Sheet1", [
-    [
-      "Test Lead",
-      "QuickCare Clinic",
-      "email@test.com",
-      "Interested in reducing no-shows",
-      now,
-      "Pending"
-    ]
-  ]);
-
-  console.log("✅ Wrote to Google Sheet successfully!");
+  console.log(result);
 }
 
 run();
