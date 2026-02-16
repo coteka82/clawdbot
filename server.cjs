@@ -85,16 +85,15 @@ app.get("/auth/google/callback", async (req, res) => {
   }
 });  
 
-
 /* =====================================================
-   LEAD ROUTE
+   LEAD ROUTE — FULL SYSTEM
 ===================================================== */
 
 app.post("/lead", async (req, res) => {
   try {
-    const { name, company, email, message, source } = req.body || {};
+    const { name, company, email, message, source, result, painPoint } = req.body || {};
 
-    // Basic validation
+    // 1️⃣ Basic validation
     if (!email) {
       return res.status(400).json({
         ok: false,
@@ -104,27 +103,53 @@ app.post("/lead", async (req, res) => {
 
     const now = new Date().toISOString();
 
-    // 1️⃣ Save to Google Sheets
-    const result = await upsertLead({
+    /* =====================================================
+       2️⃣ SAVE TO GOOGLE SHEETS
+    ===================================================== */
+
+    const sheetResult = await upsertLead({
       name,
       company,
       email,
       message,
-      source,
+      source: source || "api",
       status: "Pending",
       createdAt: now
     });
 
-    // 2️⃣ Send Internal Notification Email (To You)
+    /* =====================================================
+       3️⃣ SAVE TO FIREBASE (MASTER DATABASE)
+    ===================================================== */
+
+    await db.collection("leads").add({
+      name: name || null,
+      company: company || null,
+      email,
+      message: message || null,
+      result: result || null,
+      painPoint: painPoint || null,
+      source: source || "api",
+      status: "new",
+      followUpStage: 0,
+      vaAssigned: false,
+      createdAt: now
+    });
+
+    /* =====================================================
+       4️⃣ SEND INTERNAL EMAIL (TO YOU)
+    ===================================================== */
+
     await resend.emails.send({
       from: "DataLabSync <claude@datalabsync.com>",
       to: "claude@datalabsync.com",
-      subject: "🚀 New Lead Captured - DataLabSync",
+      subject: "🚀 New Lead Captured – DataLabSync",
       html: `
         <h2>New Lead Submitted</h2>
         <p><strong>Name:</strong> ${name || "N/A"}</p>
         <p><strong>Company:</strong> ${company || "N/A"}</p>
         <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Pain Point:</strong> ${painPoint || "N/A"}</p>
+        <p><strong>Quiz Result:</strong> ${result || "N/A"}</p>
         <p><strong>Message:</strong></p>
         <p>${message || "No message provided."}</p>
         <hr/>
@@ -133,26 +158,67 @@ app.post("/lead", async (req, res) => {
       `
     });
 
-    // 3️⃣ Send Confirmation Email to Lead
+    /* =====================================================
+       5️⃣ SEND THANK YOU EMAIL (FOUNDER STYLE)
+    ===================================================== */
+
     await resend.emails.send({
-      from: "DataLabSync <claude@datalabsync.com>",
+      from: "Claude – DataLabSync <claude@datalabsync.com>",
       to: email,
-      subject: "Thanks for reaching out to DataLabSync",
+      subject: "Thanks for taking the quiz",
       html: `
         <h2>Hi ${name || "there"},</h2>
-        <p>Thanks for your interest in DataLabSync.</p>
-        <p>We help Diagnostics Field Agents eliminate validation chaos and regain visibility across installs.</p>
-        <p>Someone from our team will reach out shortly.</p>
+
+        <p>Thanks for taking the DataLabSync assessment.</p>
+
+        <p>Based on your answers, it looks like you're dealing with:</p>
+        <p><strong>${painPoint || "Operational inefficiencies"}</strong></p>
+
+        <p>And your current workflow likely reflects:</p>
+        <p><strong>${result || "Manual validation processes"}</strong></p>
+
+        <p>That’s exactly why I built DataLabSync.</p>
+
+        <p>Field teams are drowning in validation documentation, spreadsheets, and disconnected systems. 
+        We’re fixing that with structured workflows, automatic documentation, and manager visibility.</p>
+
+        <p>I’d love to understand your situation better.</p>
+
+        <p>
+          👉 <a href="https://calendly.com/your-link-here" target="_blank">
+          Schedule 15 minutes with me
+          </a>
+        </p>
+
+        <p>Or just hit reply — I read every response.</p>
+
         <br/>
         <p>— Claude</p>
         <p><strong>Founder, DataLabSync</strong></p>
       `
     });
 
-    // 4️⃣ Final API response
+    /* =====================================================
+       6️⃣ FLAG FOR VA FOLLOW-UP
+    ===================================================== */
+
+    await db.collection("followups").add({
+      email,
+      assignedTo: "VA",
+      priority: "High",
+      stage: "initial_contact",
+      calendlySent: true,
+      createdAt: now
+    });
+
+    /* =====================================================
+       7️⃣ FINAL RESPONSE
+    ===================================================== */
+
     res.json({
       ok: true,
-      result
+      message: "Lead captured, stored, and emails sent successfully.",
+      sheetResult
     });
 
   } catch (err) {
