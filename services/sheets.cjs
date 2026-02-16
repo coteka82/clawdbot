@@ -1,43 +1,27 @@
 const { google } = require("googleapis");
-
-const raw = process.env.GOOGLE_CREDENTIALS;
-
-if (!raw) {
-  throw new Error("GOOGLE_CREDENTIALS env variable is missing");
-}
-
-let credentials;
-
-try {
-  credentials = JSON.parse(raw);
-} catch (err) {
-  console.error("Failed to parse GOOGLE_CREDENTIALS:", err);
-  throw err;
-}
-
-// 🔥 CRITICAL FIX FOR RENDER
-if (credentials.private_key) {
-  credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
-}
-
-const auth = new google.auth.GoogleAuth({
-  credentials,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-});
-
-const sheets = google.sheets({ version: "v4", auth });
+const { getAuthorizedOAuthClient } = require("./googleOAuth.cjs");
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const SHEET_NAME = process.env.SHEET_NAME || "Sheet1";
 
-async function upsertLead({ name, company, email, message, source, status }) {
-  if (!SPREADSHEET_ID) {
-    throw new Error("SPREADSHEET_ID is not set");
-  }
+function requireEnv(name) {
+  const v = process.env[name];
+  if (!v) throw new Error(`${name} not set`);
+  return v;
+}
 
+function getSheetsClient() {
+  const auth = getAuthorizedOAuthClient();
+  return google.sheets({ version: "v4", auth });
+}
+
+async function upsertLead({ name, company, email, message, source, status }) {
+  requireEnv("SPREADSHEET_ID");
+
+  const sheets = getSheetsClient();
   const now = new Date().toISOString();
 
-  // Get existing rows
+  // Get existing rows (A2:I)
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!A2:I`,
@@ -45,8 +29,8 @@ async function upsertLead({ name, company, email, message, source, status }) {
 
   const rows = response.data.values || [];
 
-  // Check if email already exists
-  const existingIndex = rows.findIndex(row => row[2] === email);
+  // Email col is C (index 2)
+  const existingIndex = rows.findIndex((row) => row[2] === email);
 
   if (existingIndex !== -1) {
     const rowNumber = existingIndex + 2;
@@ -56,17 +40,19 @@ async function upsertLead({ name, company, email, message, source, status }) {
       range: `${SHEET_NAME}!A${rowNumber}:I${rowNumber}`,
       valueInputOption: "RAW",
       requestBody: {
-        values: [[
-          name || "",
-          company || "",
-          email,
-          message || "",
-          rows[existingIndex][4] || now,
-          status || "Pending",
-          now,
-          source || "api",
-          ""
-        ]],
+        values: [
+          [
+            name || "",
+            company || "",
+            email,
+            message || "",
+            rows[existingIndex][4] || now, // keep original createdAt if present
+            status || "Pending",
+            now,
+            source || "api",
+            "",
+          ],
+        ],
       },
     });
 
@@ -79,17 +65,19 @@ async function upsertLead({ name, company, email, message, source, status }) {
     range: `${SHEET_NAME}!A2:I`,
     valueInputOption: "RAW",
     requestBody: {
-      values: [[
-        name || "",
-        company || "",
-        email,
-        message || "",
-        now,
-        status || "Pending",
-        now,
-        source || "api",
-        ""
-      ]],
+      values: [
+        [
+          name || "",
+          company || "",
+          email,
+          message || "",
+          now,
+          status || "Pending",
+          now,
+          source || "api",
+          "",
+        ],
+      ],
     },
   });
 
