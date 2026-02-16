@@ -1,3 +1,7 @@
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 const express = require("express");
 const cors = require("cors");
 
@@ -90,21 +94,62 @@ app.post("/lead", async (req, res) => {
   try {
     const { name, company, email, message, source } = req.body || {};
 
+    // Basic validation
     if (!email) {
       return res.status(400).json({
         ok: false,
-        error: "email is required"
+        error: "Email is required"
       });
     }
 
+    const now = new Date().toISOString();
+
+    // 1️⃣ Save to Google Sheets
     const result = await upsertLead({
       name,
       company,
       email,
       message,
-      source
+      source,
+      status: "Pending",
+      createdAt: now
     });
 
+    // 2️⃣ Send Internal Notification Email (To You)
+    await resend.emails.send({
+      from: "DataLabSync <claude@datalabsync.com>",
+      to: "claude@datalabsync.com",
+      subject: "🚀 New Lead Captured - DataLabSync",
+      html: `
+        <h2>New Lead Submitted</h2>
+        <p><strong>Name:</strong> ${name || "N/A"}</p>
+        <p><strong>Company:</strong> ${company || "N/A"}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message || "No message provided."}</p>
+        <hr/>
+        <p><strong>Source:</strong> ${source || "api"}</p>
+        <p><strong>Captured At:</strong> ${now}</p>
+      `
+    });
+
+    // 3️⃣ Send Confirmation Email to Lead
+    await resend.emails.send({
+      from: "DataLabSync <claude@datalabsync.com>",
+      to: email,
+      subject: "Thanks for reaching out to DataLabSync",
+      html: `
+        <h2>Hi ${name || "there"},</h2>
+        <p>Thanks for your interest in DataLabSync.</p>
+        <p>We help Diagnostics Field Agents eliminate validation chaos and regain visibility across installs.</p>
+        <p>Someone from our team will reach out shortly.</p>
+        <br/>
+        <p>— Claude</p>
+        <p><strong>Founder, DataLabSync</strong></p>
+      `
+    });
+
+    // 4️⃣ Final API response
     res.json({
       ok: true,
       result
@@ -112,13 +157,13 @@ app.post("/lead", async (req, res) => {
 
   } catch (err) {
     console.error("Lead Error:", err);
+
     res.status(500).json({
       ok: false,
       error: err.message
     });
   }
 });
-
 
 /* =====================================================
    HEALTH CHECK
