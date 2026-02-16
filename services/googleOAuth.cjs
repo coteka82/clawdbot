@@ -19,7 +19,7 @@ function getAuthUrl() {
 
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
-    prompt: "consent", // forces refresh token
+    prompt: "consent",
     scope: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 }
@@ -31,18 +31,20 @@ async function handleOAuthCallback(code) {
 
   if (!tokens.refresh_token) {
     throw new Error(
-      "No refresh token returned. Try again with prompt=consent and ensure you approve access."
-);
+      "No refresh token returned. Try again with prompt=consent."
+    );
   }
 
-  return { refreshToken: tokens.refresh_token };
+  return tokens.refresh_token;
 }
 
 function getAuthorizedOAuthClient() {
   const oauth2Client = getOAuthClient();
   const refreshToken = requireEnv("GOOGLE_REFRESH_TOKEN");
 
-  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  oauth2Client.setCredentials({
+    refresh_token: refreshToken,
+  });
 
   return oauth2Client;
 }

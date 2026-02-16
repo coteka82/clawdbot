@@ -34,14 +34,14 @@ app.get("/auth", (req, res) => {
   `);
 });
 
-// Step 2: OAuth callback (THIS MUST MATCH GOOGLE CONSOLE)
-app.get("/oauth2callback", async (req, res) => {
+// Step 2: OAuth callback
+app.get("/auth/google/callback", async (req, res) => {
   try {
     if (!req.query.code) {
       return res.status(400).send("No OAuth code received.");
     }
 
-    const { refreshToken } = await handleOAuthCallback(req.query.code);
+    const refreshToken = await handleOAuthCallback(req.query.code);
 
     res.send(`
       <h2>✅ Google Authorized Successfully</h2>
