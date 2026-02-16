@@ -6,14 +6,14 @@ const { getAuthUrl, handleOAuthCallback } = require("./services/googleOAuth.cjs"
 
 const app = express();
 
-// ✅ CORS for Netlify + local dev
+const PORT = process.env.PORT || 3000;
+
+// ✅ CORS
 app.use(cors({
   origin: [
-    "http://localhost:8888",
     "http://localhost:3000",
-    "https://clawdbot-5b60.onrender.com", // your render url
-    // ADD your netlify site URL here once you have it, example:
-    // "https://datalabsync.netlify.app"
+    "http://localhost:8888",
+    "https://clawdbot-5b60.onrender.com"
   ],
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type"],
@@ -21,7 +21,11 @@ app.use(cors({
 
 app.use(express.json());
 
-// --- OAuth routes ---
+/* =====================================================
+   GOOGLE OAUTH ROUTES
+===================================================== */
+
+// Step 1: Start OAuth
 app.get("/auth", (req, res) => {
   const url = getAuthUrl();
   res.send(`
@@ -30,30 +34,47 @@ app.get("/auth", (req, res) => {
   `);
 });
 
+// Step 2: OAuth callback (THIS MUST MATCH GOOGLE CONSOLE)
 app.get("/oauth2callback", async (req, res) => {
   try {
+    if (!req.query.code) {
+      return res.status(400).send("No OAuth code received.");
+    }
+
     const { refreshToken } = await handleOAuthCallback(req.query.code);
 
-    // IMPORTANT: you must copy this into Render env as GOOGLE_REFRESH_TOKEN
     res.send(`
-      <h2>✅ Authorized</h2>
-      <p><strong>Copy this Refresh Token into Render Env:</strong></p>
+      <h2>✅ Google Authorized Successfully</h2>
+      <p><strong>Copy this refresh token into Render:</strong></p>
       <pre>${refreshToken}</pre>
-      <p>Then redeploy. After that, your /lead route will write to Google Sheets.</p>
+      <p>
+        Go to Render → Environment → Add:
+        <br/>
+        GOOGLE_REFRESH_TOKEN = ${refreshToken}
+      </p>
+      <p>Then redeploy.</p>
     `);
+
   } catch (err) {
-    console.error(err);
+    console.error("OAuth Error:", err);
     res.status(500).send(`OAuth callback failed: ${err.message}`);
   }
 });
 
-// --- Lead intake route ---
+
+/* =====================================================
+   LEAD ROUTE
+===================================================== */
+
 app.post("/lead", async (req, res) => {
   try {
     const { name, company, email, message, source } = req.body || {};
 
     if (!email) {
-      return res.status(400).json({ ok: false, error: "email is required" });
+      return res.status(400).json({
+        ok: false,
+        error: "email is required"
+      });
     }
 
     const result = await upsertLead({
@@ -61,18 +82,33 @@ app.post("/lead", async (req, res) => {
       company,
       email,
       message,
-      source,
-      status: "Pending",
+      source
     });
 
-    res.json({ ok: true, result });
+    res.json({
+      ok: true,
+      result
+    });
+
   } catch (err) {
-    console.error("Lead error:", err);
-    res.status(500).json({ ok: false, error: err.message });
+    console.error("Lead Error:", err);
+    res.status(500).json({
+      ok: false,
+      error: err.message
+    });
   }
 });
 
-const PORT = process.env.PORT || 3000;
+
+/* =====================================================
+   HEALTH CHECK
+===================================================== */
+
+app.get("/", (req, res) => {
+  res.send("Clawdbot API running.");
+});
+
+
 app.listen(PORT, () => {
-  console.log(`API running on port ${PORT}`);
+  console.log(`🚀 API running on port ${PORT}`);
 });
