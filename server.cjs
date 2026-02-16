@@ -3,6 +3,7 @@ const cors = require("cors");
 const { upsertLead } = require("./services/sheets.cjs");
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
