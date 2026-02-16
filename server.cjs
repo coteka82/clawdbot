@@ -26,15 +26,6 @@ app.use(express.json());
 ===================================================== */
 
 // Step 1: Start OAuth
-app.get("/auth", (req, res) => {
-  const url = getAuthUrl();
-  res.send(`
-    <h2>Clawdbot Google OAuth</h2>
-    <p><a href="${url}">Click here to authorize Google Sheets</a></p>
-  `);
-});
-
-// Step 2: OAuth callback
 app.get("/auth/google/callback", async (req, res) => {
   try {
     if (!req.query.code) {
@@ -54,12 +45,41 @@ app.get("/auth/google/callback", async (req, res) => {
       </p>
       <p>Then redeploy.</p>
     `);
-
   } catch (err) {
     console.error("OAuth Error:", err);
     res.status(500).send(`OAuth callback failed: ${err.message}`);
   }
 });
+
+// Step 2: OAuth callback
+app.get("/auth/google/callback", async (req, res) => {
+  try {
+    // Make sure Google sent back a code
+    if (!req.query.code) {
+      return res.status(400).send("No OAuth code received.");
+    }
+
+    // Exchange code for refresh token
+    const refreshToken = await handleOAuthCallback(req.query.code);
+
+    // Show token so you can copy into Render
+    res.send(`
+      <h2>✅ Google Authorized Successfully</h2>
+      <p><strong>Copy this refresh token into Render:</strong></p>
+      <pre>${refreshToken}</pre>
+      <p>
+        Go to Render → Environment → Add:
+        <br/>
+        GOOGLE_REFRESH_TOKEN = ${refreshToken}
+      </p>
+      <p>Then redeploy your service.</p>
+    `);
+
+  } catch (err) {
+    console.error("OAuth Error:", err);
+    res.status(500).send(`OAuth callback failed: ${err.message}`);
+  }
+});  
 
 
 /* =====================================================
