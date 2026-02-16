@@ -31,8 +31,8 @@ async function handleOAuthCallback(code) {
 
   if (!tokens.refresh_token) {
     throw new Error(
-      "No refresh token returned. Try again with prompt=consent (already set) and ensure you approve access."
-    );
+      "No refresh token returned. Try again with prompt=consent and ensure you approve access."
+);
   }
 
   return { refreshToken: tokens.refresh_token };
