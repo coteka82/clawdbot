@@ -12,19 +12,16 @@ console.log("🔥 DB Exists In Server:", !!db);
 const { getAuthUrl, handleOAuthCallback } = require("./services/googleOAuth.cjs");
 
 const app = express();
-
-const PORT = process.env.PORT || 3000;
-
-// ✅ CORS
 app.use(cors({
   origin: [
-    "http://localhost:3000",
-    "http://localhost:8888",
-    "https://clawdbot-5b60.onrender.com"
+    "https://datalabsync.com",
+    "https://www.datalabsync.com"
   ],
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
