@@ -28,6 +28,22 @@ app.use(cors({
 
 app.use(express.json());
 
+/* ======================================
+   LEAD SCORING ENGINE
+====================================== */
+
+function calculateLeadScore({ result, painPoint, message }) {
+  let score = 0;
+
+  if (painPoint && painPoint.toLowerCase().includes("chaos")) score += 30;
+  if (painPoint && painPoint.toLowerCase().includes("compliance")) score += 25;
+  if (result && result.toLowerCase().includes("manual")) score += 25;
+  if (message && message.length > 50) score += 20;
+  if (message && message.toLowerCase().includes("urgent")) score += 40;
+
+  return score;
+}
+
 /* =====================================================
    GOOGLE OAUTH ROUTES
 ===================================================== */
@@ -105,6 +121,13 @@ app.post("/lead", async (req, res) => {
     }
 
     const now = new Date().toISOString();
+
+// Calculate lead score
+const score = calculateLeadScore({ result, painPoint, message });
+
+let temperature = "cold";
+if (score >= 60) temperature = "hot";
+else if (score >= 30) temperature = "warm";
 
     /* =====================================================
        2️⃣ SAVE TO GOOGLE SHEETS
@@ -205,14 +228,20 @@ app.post("/lead", async (req, res) => {
        6️⃣ FLAG FOR VA FOLLOW-UP
     ===================================================== */
 
-    await db.collection("followups").add({
-      email,
-      assignedTo: "VA",
-      priority: "High",
-      stage: "initial_contact",
-      calendlySent: true,
-      createdAt: now
-    });
+    await db.collection("leads").doc(email).set({
+  	name,
+  	company,
+  	email,
+  	message,
+  	result,
+  	painPoint,
+  	score,
+  	temperature,
+  	status: "new",
+  	followUpStage: 0,
+  	replied: false,
+  	createdAt: now
+     });
 
     /* =====================================================
        7️⃣ FINAL RESPONSE
