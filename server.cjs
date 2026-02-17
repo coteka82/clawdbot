@@ -1,5 +1,4 @@
 const { Resend } = require("resend");
-
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const express = require("express");
@@ -7,6 +6,9 @@ const cors = require("cors");
 
 const { upsertLead } = require("./services/sheets.cjs");
 const { db } = require("./services/firebase.cjs");
+
+console.log("🔥 DB Exists In Server:", !!db);
+
 const { getAuthUrl, handleOAuthCallback } = require("./services/googleOAuth.cjs");
 
 const app = express();
