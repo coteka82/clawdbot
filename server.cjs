@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 
 const { upsertLead } = require("./services/sheets.cjs");
+const { db } = require("./services/firebase.cjs");
 const { getAuthUrl, handleOAuthCallback } = require("./services/googleOAuth.cjs");
 
 const app = express();
