@@ -21,17 +21,26 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // CORS CONFIG
 // ===============================
 app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:8888",
-    "https://datalabsync.com",
-    "https://www.datalabsync.com",
-    "https://clawbot-5b60.onrender.com"
-  ],
+  origin: function (origin, callback) {
+    const allowed = [
+      "https://datalabsync.com",
+      "https://www.datalabsync.com",
+      "http://localhost:3000",
+      "http://localhost:8888"
+    ];
+
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
 
+app.options("*", cors());
 app.use(express.json());
 
 /* ======================================
