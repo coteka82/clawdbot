@@ -1,17 +1,17 @@
-const { Resend } = require("resend");
-const resend = new Resend(process.env.RESEND_API_KEY);
-
+// ===============================
+// IMPORTS
+// ===============================
 const express = require("express");
 const cors = require("cors");
+const { Resend } = require("resend");
 
-const { upsertLead } = require("./services/sheets.cjs");
 const { db } = require("./services/firebase.cjs");
 
-console.log("🔥 DB Exists In Server:", !!db);
-
-const { getAuthUrl, handleOAuthCallback } = require("./services/googleOAuth.cjs");
-
+// ===============================
+// APP SETUP
+// ===============================
 const app = express();
+<<<<<<< HEAD
 app.use(cors({
   origin: [
     "https://datalabsync.com",
@@ -19,6 +19,27 @@ app.use(cors({
   ],
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
+=======
+const PORT = process.env.PORT || 3000;
+
+// ===============================
+// RESEND SETUP
+// ===============================
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ===============================
+// CORS CONFIG
+// ===============================
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:8888",
+    "https://datalabsync.com",
+    "https://clawbot-5b60.onrender.com"
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"]
+>>>>>>> ad8a915 (Final clean backend with working waitlist route)
 }));
 
 const PORT = process.env.PORT || 3000;
@@ -265,9 +286,29 @@ else if (score >= 30) temperature = "warm";
 ===================================================== */
 
 app.get("/", (req, res) => {
-  res.send("Clawdbot API running.");
+  res.json({ message: "Clawbot API running 🚀" });
 });
 
+app.post("/api/waitlist", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: "Email required" });
+    }
+
+    await db.collection("waitlist").add({
+      email: email.toLowerCase().trim(),
+      createdAt: new Date()
+    });
+
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 API running on port ${PORT}`);
