@@ -1,3 +1,4 @@
+cat > server.cjs << 'ENDOFFILE'
 const express = require("express");
 const cors = require("cors");
 const { Resend } = require("resend");
@@ -27,12 +28,11 @@ app.use(cors({
   credentials: true
 }));
 
-app.options("*", cors());
 app.use(express.json());
 
-/* ======================================
+/* ==================================================
    LEAD SCORING ENGINE
-====================================== */
+   ================================================== */
 
 function calculateLeadScore({ result, painPoint, message }) {
   let score = 0;
@@ -46,11 +46,10 @@ function calculateLeadScore({ result, painPoint, message }) {
   return score;
 }
 
-/* =====================================================
+/* ==================================================
    GOOGLE OAUTH ROUTES
-===================================================== */
+   ================================================== */
 
-// Step 1: Start OAuth
 app.get("/auth/google/callback", async (req, res) => {
   try {
     if (!req.query.code) {
@@ -59,35 +58,6 @@ app.get("/auth/google/callback", async (req, res) => {
 
     const refreshToken = await handleOAuthCallback(req.query.code);
 
-    res.send(`
-      <h2>✅ Google Authorized Successfully</h2>
-      <p><strong>Copy this refresh token into Render:</strong></p>
-      <pre>${refreshToken}</pre>
-      <p>
-        Go to Render → Environment → Add:
-        <br/>
-        GOOGLE_REFRESH_TOKEN = ${refreshToken}
-      </p>
-      <p>Then redeploy.</p>
-    `);
-  } catch (err) {
-    console.error("OAuth Error:", err);
-    res.status(500).send(`OAuth callback failed: ${err.message}`);
-  }
-});
-
-// Step 2: OAuth callback
-app.get("/auth/google/callback", async (req, res) => {
-  try {
-    // Make sure Google sent back a code
-    if (!req.query.code) {
-      return res.status(400).send("No OAuth code received.");
-    }
-
-    // Exchange code for refresh token
-    const refreshToken = await handleOAuthCallback(req.query.code);
-
-    // Show token so you can copy into Render
     res.send(`
       <h2>✅ Google Authorized Successfully</h2>
       <p><strong>Copy this refresh token into Render:</strong></p>
@@ -99,22 +69,20 @@ app.get("/auth/google/callback", async (req, res) => {
       </p>
       <p>Then redeploy your service.</p>
     `);
-
   } catch (err) {
     console.error("OAuth Error:", err);
     res.status(500).send(`OAuth callback failed: ${err.message}`);
   }
-});  
+});
 
-/* =====================================================
+/* ==================================================
    LEAD ROUTE — FULL SYSTEM
-===================================================== */
+   ================================================== */
 
 app.post("/lead", async (req, res) => {
   try {
     const { name, company, email, message, source, result, painPoint } = req.body || {};
 
-    // 1️⃣ Basic validation
     if (!email) {
       return res.status(400).json({
         ok: false,
@@ -124,16 +92,15 @@ app.post("/lead", async (req, res) => {
 
     const now = new Date().toISOString();
 
-// Calculate lead score
-const score = calculateLeadScore({ result, painPoint, message });
+    const score = calculateLeadScore({ result, painPoint, message });
 
-let temperature = "cold";
-if (score >= 60) temperature = "hot";
-else if (score >= 30) temperature = "warm";
+    let temperature = "cold";
+    if (score >= 60) temperature = "hot";
+    else if (score >= 30) temperature = "warm";
 
-    /* =====================================================
-       2️⃣ SAVE TO GOOGLE SHEETS
-    ===================================================== */
+    /* ==================================================
+       📊SAVE TO GOOGLE SHEETS
+       ================================================== */
 
     const sheetResult = await upsertLead({
       name,
@@ -145,9 +112,9 @@ else if (score >= 30) temperature = "warm";
       createdAt: now
     });
 
-    /* =====================================================
-       3️⃣ SAVE TO FIREBASE (MASTER DATABASE)
-    ===================================================== */
+    /* ==================================================
+       🔥SAVE TO FIREBASE (MASTER DATABASE)
+       ================================================== */
 
     await db.collection("leads").add({
       name: name || null,
@@ -163,14 +130,14 @@ else if (score >= 30) temperature = "warm";
       createdAt: now
     });
 
-    /* =====================================================
-       4️⃣ SEND INTERNAL EMAIL (TO YOU)
-    ===================================================== */
+    /* ==================================================
+       📧SEND INTERNAL EMAIL (TO YOU)
+       ================================================== */
 
     await resend.emails.send({
       from: "DataLabSync <claude@datalabsync.com>",
       to: "claude@datalabsync.com",
-      subject: "🚀 New Lead Captured – DataLabSync",
+      subject: "🚀 New Lead Captured — DataLabSync",
       html: `
         <h2>New Lead Submitted</h2>
         <p><strong>Name:</strong> ${name || "N/A"}</p>
@@ -186,12 +153,12 @@ else if (score >= 30) temperature = "warm";
       `
     });
 
-    /* =====================================================
-       5️⃣ SEND THANK YOU EMAIL (FOUNDER STYLE)
-    ===================================================== */
+    /* ==================================================
+       📧SEND THANK YOU EMAIL (FOUNDER STYLE)
+       ================================================== */
 
     await resend.emails.send({
-      from: "Claude – DataLabSync <claude@datalabsync.com>",
+      from: "Claude — DataLabSync <claude@datalabsync.com>",
       to: email,
       subject: "Thanks for taking the quiz",
       html: `
@@ -205,16 +172,16 @@ else if (score >= 30) temperature = "warm";
         <p>And your current workflow likely reflects:</p>
         <p><strong>${result || "Manual validation processes"}</strong></p>
 
-        <p>That’s exactly why I built DataLabSync.</p>
+        <p>That's exactly why I built DataLabSync.</p>
 
-        <p>Field teams are drowning in validation documentation, spreadsheets, and disconnected systems. 
-        We’re fixing that with structured workflows, automatic documentation, and manager visibility.</p>
+        <p>Field teams are drowning in validation documentation, spreadsheets, and disconnected systems.
+        We're fixing that with structured workflows, automatic documentation, and manager visibility.</p>
 
-        <p>I’d love to understand your situation better.</p>
+        <p>I'd love to understand your situation better.</p>
 
         <p>
           👉 <a href="https://calendly.com/your-link-here" target="_blank">
-          Schedule 15 minutes with me
+            Schedule 15 minutes with me
           </a>
         </p>
 
@@ -226,28 +193,28 @@ else if (score >= 30) temperature = "warm";
       `
     });
 
-    /* =====================================================
-       6️⃣ FLAG FOR VA FOLLOW-UP
-    ===================================================== */
+    /* ==================================================
+       🏷FLAG FOR VA FOLLOW-UP
+       ================================================== */
 
     await db.collection("leads").doc(email).set({
-  	name,
-  	company,
-  	email,
-  	message,
-  	result,
-  	painPoint,
-  	score,
-  	temperature,
-  	status: "new",
-  	followUpStage: 0,
-  	replied: false,
-  	createdAt: now
-     });
+      name,
+      company,
+      email,
+      message,
+      result,
+      painPoint,
+      score,
+      temperature,
+      status: "new",
+      followUpStage: 0,
+      replied: false,
+      createdAt: now
+    });
 
-    /* =====================================================
-       7️⃣ FINAL RESPONSE
-    ===================================================== */
+    /* ==================================================
+       ✅FINAL RESPONSE
+       ================================================== */
 
     res.json({
       ok: true,
@@ -265,16 +232,20 @@ else if (score >= 30) temperature = "warm";
   }
 });
 
-/* =====================================================
+/* ==================================================
    HEALTH CHECK
-===================================================== */
+   ================================================== */
 
 app.get("/", (req, res) => {
-  res.json({ 
-    message: "Clawbot API running 🚀", 
-    firebaseConnected: db !== null 
+  res.json({
+    message: "Clawbot API running 🚀",
+    firebaseConnected: db !== null
+  });
 });
-});
+
+/* ==================================================
+   WAITLIST ROUTE
+   ================================================== */
 
 app.post("/api/waitlist", async (req, res) => {
   if (!db) {
@@ -287,13 +258,23 @@ app.post("/api/waitlist", async (req, res) => {
     return res.status(400).json({ error: "Email required" });
   }
 
-  await db.collection("waitlist").add({
-    email,
-    createdAt: admin.firestore.FieldValue.serverTimestamp()
-  });
+  try {
+    await db.collection("waitlist").add({
+      email,
+      createdAt: require("firebase-admin").firestore.FieldValue.serverTimestamp()
+    });
 
-  res.json({ success: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Waitlist error:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
+/* ==================================================
+   START SERVER
+   ================================================== */
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 API running on port ${PORT}`));
+ENDOFFILE
