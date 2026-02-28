@@ -4,22 +4,12 @@
 const express = require("express");
 const cors = require("cors");
 const { Resend } = require("resend");
-
 const { db } = require("./services/firebase.cjs");
 
 // ===============================
 // APP SETUP
 // ===============================
 const app = express();
-<<<<<<< HEAD
-app.use(cors({
-  origin: [
-    "https://datalabsync.com",
-    "https://www.datalabsync.com"
-  ],
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-=======
 const PORT = process.env.PORT || 3000;
 
 // ===============================
@@ -35,14 +25,12 @@ app.use(cors({
     "http://localhost:3000",
     "http://localhost:8888",
     "https://datalabsync.com",
+    "https://www.datalabsync.com",
     "https://clawbot-5b60.onrender.com"
   ],
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"]
->>>>>>> ad8a915 (Final clean backend with working waitlist route)
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
-
-const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
