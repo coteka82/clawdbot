@@ -4,7 +4,6 @@ const { Resend } = require("resend");
 const { db } = require("./services/firebase.cjs");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
