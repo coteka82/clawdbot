@@ -1,25 +1,13 @@
-// ===============================
-// IMPORTS
-// ===============================
 const express = require("express");
 const cors = require("cors");
 const { Resend } = require("resend");
 const { db } = require("./services/firebase.cjs");
 
-// ===============================
-// APP SETUP
-// ===============================
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ===============================
-// RESEND SETUP
-// ===============================
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ===============================
-// CORS CONFIG
-// ===============================
 app.use(cors({
   origin: function (origin, callback) {
     const allowed = [
@@ -283,30 +271,30 @@ else if (score >= 30) temperature = "warm";
 ===================================================== */
 
 app.get("/", (req, res) => {
-  res.json({ message: "Clawbot API running 🚀" });
+  res.json({ 
+    message: "Clawbot API running 🚀", 
+    firebaseConnected: db !== null 
+});
 });
 
 app.post("/api/waitlist", async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ success: false, error: "Email required" });
-    }
-
-    await db.collection("waitlist").add({
-      email: email.toLowerCase().trim(),
-      createdAt: new Date()
-    });
-
-    return res.json({ success: true });
-
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ success: false, error: "Server error" });
+  if (!db) {
+    return res.status(503).json({ error: "Database unavailable" });
   }
+
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email required" });
+  }
+
+  await db.collection("waitlist").add({
+    email,
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  res.json({ success: true });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 API running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 API running on port ${PORT}`));
