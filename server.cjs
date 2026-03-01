@@ -1,4 +1,3 @@
-cat > server.cjs << 'ENDOFFILE'
 const express = require("express");
 const cors = require("cors");
 const { Resend } = require("resend");
